@@ -1,128 +1,95 @@
-# OOP Calculator
+# IS218 Command Factory Statistics Calculator
 
-This project is a command-line calculator built with object-oriented Python. It supports addition and subtraction, keeps a calculation history for the current session, lets the user remove saved calculations, and handles bad input without crashing.
-
-Repository URL after publishing:
-https://github.com/moo29-sketch/is218-oop-calculator
-
-## Features
-
-The calculator supports six commands:
-
-- `add` — add two numbers and save the successful calculation
-- `subtract` — subtract the second number from the first and save the successful calculation
-- `history` — show the calculations saved during the current session
-- `remove` — remove a calculation using the number shown in history
-- `help` — display the available commands
-- `exit` — end the calculator session
-
-Invalid numbers, unknown commands, invalid removals, Ctrl+C, and end-of-input are handled without crashing the program. `nan`, positive or negative infinity, and results that overflow to infinity are rejected and are not added to history.
+This project extends the completed OOP calculator with static operations, callable composition, a calculation factory, flexible operands and named settings, command objects, pandas statistics, CSV input, and prepared-sequence execution.
 
 ## Requirements
 
-- Python 3.11 or newer
-- pip
+- Python 3.11–3.14
+- pandas 2.2+
+- pytest 8.3+
 
-The automated GitHub workflow checks Python 3.11, 3.12, 3.13, and 3.14.
+Install dependencies:
 
-## Installation
+`py -m pip install -r requirements.txt`
 
-Clone the repository and enter the project folder:
+Run the test suite:
 
-```text
-git clone https://github.com/moo29-sketch/is218-oop-calculator.git
-cd is218-oop-calculator
-```
+`py -m pytest -q`
 
-Create a virtual environment:
+Start the calculator:
 
-Windows PowerShell:
+`py -m calculator`
 
-```text
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
+## Supported requests
 
-macOS/Linux:
+Examples:
 
-```text
-python3 -m venv .venv
-source .venv/bin/activate
-```
+- `add 2 3` → `Result: 5.0000`
+- `subtract 2 3` → `Result: -1.0000`
+- `multiply 2 3` → `Result: 6.0000`
+- `divide 7 2` → `Result: 3.5000`
+- `square 3` → `Result: 9.0000`
+- `sqrt 9` → `Result: 3.0000`
+- `power 3 exponent=4` → `Result: 81.0000`
+- `sum 2 3 4` → `Result: 9.0000`
+- `mean 2 4 6` → `Result: 4.0000`
+- `median 9 1 5` → `Result: 5.0000`
+- `stddev 10 20 30 40 50` → `Result: 15.8114`
+- `csv mean values.csv`
+- `csv median values.csv`
+- `csv stddev values.csv`
+- `history`
+- `clear`
+- `help`
+- `exit`
 
-Install the testing dependencies:
+Standard deviation defaults to sample deviation (`ddof=1`). `ddof=0` selects population deviation.
 
-```text
-python -m pip install -r requirements.txt
-```
+## Architecture
 
-## Run the calculator
+`Operations` contains stateless mathematical methods. `Calculation` stores validated operands, a callable operation, and copied named options without executing the operation during construction.
 
-```text
-python -m calculator
-```
+`CalculationFactory` selects a registered operation, validates its operand count and supported settings, and returns an unexecuted `Calculation`. Construction and execution therefore stay separate.
 
-Example session:
+`CalculatorSession` executes a calculation first and records it only after successful completion. `History` owns its private entry list and returns a shallow copy so callers cannot clear or append to the owned collection directly.
 
-```text
-OOP Calculator
+Application actions implement the abstract `Command.execute()` contract. `CalculateCommand`, `HistoryCommand`, `ClearHistoryCommand`, and `HelpCommand` reuse the same CLI loop while keeping application actions separate from calculation construction.
 
-Type "help" for commands.
-> add
-First number: 10
-Second number: 5
-Result: 15
-> subtract
-First number: 20
-Second number: 7
-Result: 13
-> history
-Calculation History
+CSV loading is an input-source concern. `read_csv_values()` reads the `value` column and supplies ordinary observations to the same factory path used by typed values. The mathematical operations do not know whether values came from a terminal request or a CSV file.
 
-1. Add: 10, 5 = 15
-2. Subtract: 20, 7 = 13
-> exit
-Goodbye!
-```
+`execute_sequence()` processes already-prepared calculations one at a time. Each item has its own exception boundary, so one expected failure does not stop later calculations. Only successful calculations enter history.
 
-History only lasts for the current run of the program.
+## Error handling
 
-## Run the tests
+The project uses EAFP where Python or pandas already owns the failure, such as numeric conversion, file reading, division by zero, and square-root domain errors. It uses explicit checks where the application has its own published contract, such as operand counts, supported option names, finite values, required CSV headers, and minimum observation counts.
 
-```text
-python -m pytest
-```
+Failed calculations are not written to history. The CLI reports expected failures as `Error:` and continues accepting requests.
 
-The pytest configuration measures both line and branch coverage for the `calculator` package and requires 100% coverage. The project contains 37 test functions covering the calculation classes, history behavior, REPL behavior, invalid input, interrupts, and the module entry point.
+## Independent adaptation: median
 
-## Design choices
+The independent extension adds `median` as another collection statistic. It uses the same numeric validation policy as mean and standard deviation and works from both typed values and CSV input.
 
-`Calculation` is an abstract base class that stores two operands and requires subclasses to implement `get_result()`. `Add` and `Subtract` inherit from that class and provide their own arithmetic. Code that receives a `Calculation` can call the same method without checking which concrete operation it was given.
+Components affected:
 
-`History` owns the collection of successful calculation objects. The internal list is not exposed directly; `get_history()` returns a copy. This keeps other parts of the program from accidentally clearing or replacing the history. Invalid removal requests are rejected before the list changes.
+- `calculator/statistics.py` — defines the shared median policy.
+- `calculator/operations.py` — exposes median as a stateless operation.
+- `calculator/factory.py` — registers the operation.
+- `calculator/cli.py` — permits `csv median PATH`.
+- `calculator/commands.py` — documents median in help text.
+- `tests/test_adaptation.py` — proves typed, factory, and CSV behavior.
 
-The command-line interface is kept separate from the calculation classes. It converts user input, chooses the requested operation class, displays results, and saves only successful calculations. This keeps input/output concerns out of the arithmetic classes.
+History, session execution, `Calculation`, and CSV file structure did not need special median-specific logic because the existing boundaries already support a new collection operation.
 
-## Continuous integration
+## One successful and one failed request trace
 
-`.github/workflows/tests.yml` runs the complete pytest suite on GitHub Actions for Python 3.11, 3.12, 3.13, and 3.14. Each job installs the packages in `requirements.txt` and then runs `python -m pytest`, so the same coverage requirement used locally is also enforced in CI.
+Successful request: `power 3 exponent=4`
 
-If tests pass but the workflow still reports a coverage failure, I would read the coverage table and look at the `Missing` column first. That tells me which lines or branches were not executed. I would then reproduce the missing path locally, add a test that exercises that behavior, and rerun the full suite before pushing again. A coverage failure is different from an assertion failure because the behavior tests may all be correct while part of the application is still untested.
+The CLI parses the operand and named setting, then asks `CalculationFactory` to construct a `Calculation` holding `Operations.power`, `(3.0,)`, and `{"exponent": 4.0}`. No power calculation occurs during construction. `CalculateCommand.execute()` asks the session to execute it. `Calculation.get_result()` calls the stored operation, producing `81.0`. The session then records `(calculation, 81.0)` and the command returns `Result: 81.0000`.
 
-## Stage 6 reflection
+Failed request: `divide 1 0`
 
-### 1. Where would Multiply belong?
+The factory successfully constructs the calculation because zero division does not happen during construction. During command execution, `Operations.divide(1.0, 0.0)` raises `ZeroDivisionError`. Because the session records only after `get_result()` returns successfully, no history entry is added. The CLI catches the expected error, prints `Error:`, and accepts the next request.
 
-I would create a `Multiply` class that inherits from `Calculation` and implements `get_result()` by returning `self.a * self.b`. Then I would register the command in the CLI operations dictionary, add `multiply` to the help text, and add tests for normal multiplication, negative values, zero, decimals, and CLI history output. `History` would not need multiplication-specific code because it already stores any object that follows the `Calculation` contract. That is one advantage of using a common abstraction instead of putting arithmetic rules inside the history class.
+## History copy limitation
 
-### 2. What contract could email and text-message notifications share?
-
-Email and text-message notification classes could share a `Notification` interface or abstract base class with a `send()` method. Code that needs to deliver a message could work with the shared contract and call `send()` without needing separate branches for email and SMS. Each concrete notification class would handle its own delivery details.
-
-### 3. What transfers to another language?
-
-The main design ideas transfer even when the syntax changes. I can still separate responsibilities, define a common interface, use different implementations through the same contract, hide a collection behind methods, and test observable behavior. In another language I would still need to learn its class syntax, visibility rules, type system, error handling, package/module system, testing tools, and runtime behavior. The design questions transfer more directly than the exact Python grammar.
-
-## README usability improvement
-
-A setup instruction that can easily confuse users is virtual-environment activation because the command is different on Windows and macOS/Linux. This README lists both versions instead of giving one command and assuming it works everywhere.
+`History.get_history()` returns a new list, so changing that returned list does not change the collection owned by `History`. It is only a shallow copy: the `Calculation` objects inside the returned entries are still the same objects. Saved numerical results are stored with the calculations so history display does not recalculate old requests.

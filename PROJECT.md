@@ -1,5 +1,7 @@
-# IS218 OOP Calculator
+# Project
 
-Student repository: https://github.com/moo29-sketch/is218-oop-calculator
+IS218 Command Factory Statistics Calculator
 
-This project implements the required object-oriented calculator with addition, subtraction, session history, removal, help, safe exit behavior, tests, coverage enforcement, and GitHub Actions CI.
+GitHub user: moo29-sketch
+
+This sequel extends the completed OOP calculator through callable composition, a calculation factory, flexible inputs, command objects, pandas statistics/CSV data, and sequence execution with recovery. The independent adaptation adds median for typed and CSV observations.

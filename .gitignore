@@ -1,10 +1,7 @@
 .venv/
 __pycache__/
-*.py[cod]
 .pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-coverage.xml
-.DS_Store
-.env
+*.egg-info/
+grade-results.json
+grade-summary.md
+submission-work/

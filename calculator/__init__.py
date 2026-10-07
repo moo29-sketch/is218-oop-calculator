@@ -1,3 +1,1 @@
-"""The calculator package."""
-
-# A regular package groups related modules. Importing it should not start a CLI.
+"""A teaching calculator: operations, calculations, factory, and commands."""
