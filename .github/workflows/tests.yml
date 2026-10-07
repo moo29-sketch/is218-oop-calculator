@@ -1,0 +1,29 @@
+name: Calculator tests
+
+# Run on commits, pull requests, or the Actions tab's manual Run workflow button.
+on: [push, pull_request, workflow_dispatch]
+
+# Tests only need to read the repository, not change it.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # GitHub provides a fresh Linux machine for each matrix entry.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Repeat the same steps on each supported Python version.
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+    steps:
+      - name: Download repository code
+        uses: actions/checkout@v5
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt
+      # pytest.ini also enables branch coverage and the 100% coverage gate.
+      - name: Run tests and enforce coverage
+        run: python -m pytest
